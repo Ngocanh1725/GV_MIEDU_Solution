@@ -6,10 +6,9 @@ using System.Threading.Tasks;
 
 namespace GV_MIEDU.Models
 {
-    // [TÍNH TRỪU TƯỢNG]: Giao diện quy định CÁC HÀNH ĐỘNG mà một lớp Quản lý phải có
+    // [TÍNH TRỪU TƯỢNG]: Chỉ định nghĩa "làm gì", không quan tâm "làm như thế nào"
     public interface IQuanLyCanBo
     {
-        TaiKhoan KiemTraDangNhap(string username, string password);
         List<CanBo> LayDanhSach(string query = "SELECT * FROM CanBo");
         void Them(CanBo cb);
         void Sua(CanBo cb);

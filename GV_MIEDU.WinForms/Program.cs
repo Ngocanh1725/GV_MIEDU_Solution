@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Windows.Forms;
 
+
 namespace GV_MIEDU.WinForms
 {
     static class Program

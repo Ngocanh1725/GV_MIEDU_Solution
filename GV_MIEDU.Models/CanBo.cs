@@ -6,10 +6,9 @@ using System.Threading.Tasks;
 
 namespace GV_MIEDU.Models
 {
-    // [TÍNH TRỪU TƯỢNG] (Abstraction): Lớp abstract, không cho phép khởi tạo đối tượng CanBo chung chung.
     public abstract class CanBo
     {
-        // [TÍNH ĐÓNG GÓI] (Encapsulation): Che giấu dữ liệu (private) và giao tiếp qua Properties.
+        // [TÍNH ĐÓNG GÓI]: Thuộc tính private, giao tiếp qua bộ get/set để kiểm soát dữ liệu
         private string _maCB;
         private string _hoTen;
 
@@ -30,10 +29,10 @@ namespace GV_MIEDU.Models
             MaCB = maCB; HoTen = hoTen; Khoa = khoa;
         }
 
-        // [TÍNH ĐA HÌNH] (Polymorphism): Khai báo virtual để lớp con có thể ghi đè (override)
+        // [TÍNH ĐA HÌNH - Chuẩn bị]: Phương thức ảo cho phép lớp con ghi đè
         public virtual string LayThongTinChiTiet()
         {
-            return $"Mã: {MaCB} | Tên: {HoTen} | Khoa: {Khoa}";
+            return $"Khoa: {Khoa}";
         }
     }
 }

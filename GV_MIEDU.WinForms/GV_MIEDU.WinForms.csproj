@@ -9,10 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.1" />
-  </ItemGroup>
-
-  <ItemGroup>
+    <ProjectReference Include="..\GV_MIEDU.BLL\GV_MIEDU.BLL.csproj" />
     <ProjectReference Include="..\GV_MIEDU.Models\GV_MIEDU.Models.csproj" />
   </ItemGroup>
 

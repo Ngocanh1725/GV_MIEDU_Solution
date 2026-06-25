@@ -1,23 +1,21 @@
-﻿using GV_MIEDU.Models;
-using NStack;
+﻿using GV_MIEDU.BLL; // Gọi tầng BLL
+using GV_MIEDU.Models;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Terminal.Gui;
+using NStack;
 
 namespace GV_MIEDU.ConsoleApp
 {
     public class AddCanBoDialog : Dialog
     {
-        private IQuanLyCanBo _db;
+        private CanBoBLL _bll = new CanBoBLL(); // Giao tiếp qua BLL
         private bool _isEdit;
         public bool IsSaved { get; private set; } = false;
 
-        public AddCanBoDialog(IQuanLyCanBo db, CanBo cb = null) : base(cb == null ? "Thêm Cán Bộ" : "Sửa Cán Bộ", 60, 15)
+        public AddCanBoDialog(CanBo cb = null) : base(cb == null ? "Thêm Cán Bộ" : "Sửa Cán Bộ", 60, 15)
         {
-            _db = db; _isEdit = cb != null; this.ColorScheme = ThemeManager.HackerScheme;
+            _isEdit = cb != null;
+            this.ColorScheme = ThemeManager.HackerScheme;
 
             var txtMa = new TextField(_isEdit ? cb.MaCB : "") { X = 15, Y = 1, Width = 35, ReadOnly = _isEdit, ColorScheme = ThemeManager.InputScheme };
             var txtTen = new TextField(_isEdit ? cb.HoTen : "") { X = 15, Y = 3, Width = 35, ColorScheme = ThemeManager.InputScheme };
@@ -38,17 +36,29 @@ namespace GV_MIEDU.ConsoleApp
             var btnBack = new Button("Quay lại") { X = Pos.Center() + 4, Y = 12 };
 
             btnBack.Clicked += () => Application.RequestStop();
+
             btnSave.Clicked += () => {
                 try
                 {
+                    // [TÍNH KẾ THỪA] Khởi tạo đối tượng lớp con tùy vào loại RadioGroup đang chọn
                     CanBo newCb = radioLoai.SelectedItem == 0
                         ? (CanBo)new GiangVien(txtMa.Text.ToString(), txtTen.Text.ToString(), txtKhoa.Text.ToString(), txtPhu.Text.ToString())
                         : (CanBo)new ChuyenVien(txtMa.Text.ToString(), txtTen.Text.ToString(), txtKhoa.Text.ToString(), txtPhu.Text.ToString());
 
-                    if (_isEdit) _db.Sua(newCb); else _db.Them(newCb);
-                    IsSaved = true; Application.RequestStop();
+                    // Đẩy dữ liệu qua tầng BLL để kiểm tra quy tắc nghiệp vụ trước khi lưu xuống SQL
+                    if (_isEdit)
+                        _bll.Sua(newCb);
+                    else
+                        _bll.Them(newCb);
+
+                    IsSaved = true;
+                    Application.RequestStop();
                 }
-                catch (Exception ex) { MessageBox.ErrorQuery("Lỗi", ex.Message, "OK"); }
+                catch (Exception ex)
+                {
+                    // Bắt các Exception do Models ném ra (VD: Tên rỗng) hoặc do BLL ném ra
+                    MessageBox.ErrorQuery("Lỗi", ex.Message, "OK");
+                }
             };
 
             this.Add(new Label("Mã CB:") { X = 2, Y = 1 }, txtMa, new Label("Họ tên:") { X = 2, Y = 3 }, txtTen,
@@ -57,4 +67,3 @@ namespace GV_MIEDU.ConsoleApp
         }
     }
 }
-

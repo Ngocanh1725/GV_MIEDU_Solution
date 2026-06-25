@@ -1,34 +1,21 @@
-﻿using Microsoft.Data.SqlClient;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Microsoft.Data.SqlClient;
+using GV_MIEDU.Models;
+using System.Linq;
 
-namespace GV_MIEDU.Models
+
+namespace GV_MIEDU.DAL
 {
-    public class DatabaseHelper : IQuanLyCanBo
+    public class CanBoDAL : IQuanLyCanBo
     {
-        // LƯU Ý: Thay đổi tên Server cho khớp với máy của bạn
-        private string connStr = @"Server=localhost;Database=QuanLyMIEDU;Trusted_Connection=True;TrustServerCertificate=True;";
-
-        public TaiKhoan KiemTraDangNhap(string user, string pass)
-        {
-            using (SqlConnection conn = new SqlConnection(connStr))
-            {
-                SqlCommand cmd = new SqlCommand("SELECT * FROM TaiKhoan WHERE TenDangNhap=@u AND MatKhau=@p", conn);
-                cmd.Parameters.AddWithValue("@u", user); cmd.Parameters.AddWithValue("@p", pass);
-                conn.Open();
-                SqlDataReader r = cmd.ExecuteReader();
-                if (r.Read()) return new TaiKhoan(r["TenDangNhap"].ToString(), r["MatKhau"].ToString(), r["HoTen"].ToString(), r["Quyen"].ToString());
-                return null;
-            }
-        }
-
         public List<CanBo> LayDanhSach(string query = "SELECT * FROM CanBo")
         {
             List<CanBo> ds = new List<CanBo>();
-            using (SqlConnection conn = new SqlConnection(connStr))
+            using (SqlConnection conn = new SqlConnection(DatabaseConnection.ConnectionString))
             {
                 SqlCommand cmd = new SqlCommand(query, conn);
                 conn.Open();
@@ -36,10 +23,9 @@ namespace GV_MIEDU.Models
                 while (r.Read())
                 {
                     string loai = r["LoaiCB"].ToString();
-                    if (loai == "GiangVien")
-                        ds.Add(new GiangVien(r["MaCB"].ToString(), r["HoTen"].ToString(), r["Khoa"].ToString(), r["MonHocDay"].ToString()));
-                    else
-                        ds.Add(new ChuyenVien(r["MaCB"].ToString(), r["HoTen"].ToString(), r["Khoa"].ToString(), r["ChucVu"].ToString()));
+                    // [TÍNH ĐA HÌNH & KẾ THỪA] Khởi tạo đối tượng lớp con tùy vào DB
+                    if (loai == "GiangVien") ds.Add(new GiangVien(r["MaCB"].ToString(), r["HoTen"].ToString(), r["Khoa"].ToString(), r["MonHocDay"].ToString()));
+                    else ds.Add(new ChuyenVien(r["MaCB"].ToString(), r["HoTen"].ToString(), r["Khoa"].ToString(), r["ChucVu"].ToString()));
                 }
             }
             return ds;
@@ -47,7 +33,7 @@ namespace GV_MIEDU.Models
 
         public void Them(CanBo cb)
         {
-            using (SqlConnection conn = new SqlConnection(connStr))
+            using (SqlConnection conn = new SqlConnection(DatabaseConnection.ConnectionString))
             {
                 string q = "INSERT INTO CanBo VALUES (@ma, @ten, @khoa, @loai, @mon, @cv)";
                 SqlCommand cmd = new SqlCommand(q, conn);
@@ -60,7 +46,7 @@ namespace GV_MIEDU.Models
 
         public void Sua(CanBo cb)
         {
-            using (SqlConnection conn = new SqlConnection(connStr))
+            using (SqlConnection conn = new SqlConnection(DatabaseConnection.ConnectionString))
             {
                 string q = "UPDATE CanBo SET HoTen=@ten, Khoa=@khoa, MonHocDay=@mon, ChucVu=@cv WHERE MaCB=@ma";
                 SqlCommand cmd = new SqlCommand(q, conn);
@@ -73,7 +59,7 @@ namespace GV_MIEDU.Models
 
         public void Xoa(string maCB)
         {
-            using (SqlConnection conn = new SqlConnection(connStr))
+            using (SqlConnection conn = new SqlConnection(DatabaseConnection.ConnectionString))
             {
                 SqlCommand cmd = new SqlCommand("DELETE FROM CanBo WHERE MaCB=@ma", conn);
                 cmd.Parameters.AddWithValue("@ma", maCB);

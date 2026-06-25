@@ -1,155 +1,174 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
 using System.Drawing;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 using GV_MIEDU.Models;
+using GV_MIEDU.BLL; // Chỉ giao tiếp với tầng BLL, cấm dùng DAL hay SqlClient ở đây
 
 namespace GV_MIEDU.WinForms
 {
     public partial class ucCanBo : UserControl
     {
-        IQuanLyCanBo db = new DatabaseHelper();
-        DataGridView dgvData;
-        TextBox txtTimKiem;
-        ComboBox cmbLocKhoa;
+        // Khởi tạo BLL để xử lý nghiệp vụ
+        private CanBoBLL _bll = new CanBoBLL();
 
         public ucCanBo()
         {
-            // --- 1. THANH CÔNG CỤ PHÍA TRÊN ---
-            Panel pnlTop = new Panel() { Dock = DockStyle.Top, Height = 70, BackColor = Color.WhiteSmoke };
-
-            Button btnThem = new Button() { Text = "Thêm mới", Left = 15, Top = 15, Width = 90, Height = 35, BackColor = Color.FromArgb(46, 204, 113), ForeColor = Color.White, Cursor = Cursors.Hand };
-            Button btnSua = new Button() { Text = "Sửa", Left = 115, Top = 15, Width = 70, Height = 35, BackColor = Color.FromArgb(243, 156, 18), ForeColor = Color.White, Cursor = Cursors.Hand };
-            Button btnXoa = new Button() { Text = "Xóa", Left = 195, Top = 15, Width = 70, Height = 35, BackColor = Color.FromArgb(231, 76, 60), ForeColor = Color.White, Cursor = Cursors.Hand };
-            Button btnSapXep = new Button() { Text = "Sắp xếp Tên", Left = 275, Top = 15, Width = 100, Height = 35, BackColor = Color.Gray, ForeColor = Color.White, Cursor = Cursors.Hand };
-
-            cmbLocKhoa = new ComboBox() { Left = 400, Top = 20, Width = 150, DropDownStyle = ComboBoxStyle.DropDownList };
-            cmbLocKhoa.Items.AddRange(new string[] { "Tất cả khoa", "Công nghệ Thông tin", "Kinh tế", "Ngoại ngữ" });
-            cmbLocKhoa.SelectedIndex = 0;
-
-            txtTimKiem = new TextBox() { Left = 570, Top = 20, Width = 160 };
-            Button btnTim = new Button() { Text = "Tìm", Left = 740, Top = 18, Width = 60, Height = 30, BackColor = Color.FromArgb(52, 152, 219), ForeColor = Color.White, Cursor = Cursors.Hand };
-
-            // --- BẮT SỰ KIỆN CÁC NÚT BẤM ---
-            btnThem.Click += (s, e) => ShowDialogAddEdit();
-
-            btnSua.Click += (s, e) => {
-                if (dgvData.SelectedRows.Count == 0) { MessageBox.Show("Vui lòng chọn 1 dòng để sửa!"); return; }
-                string ma = dgvData.SelectedRows[0].Cells["MaCB"].Value.ToString();
-                var cb = db.LayDanhSach().FirstOrDefault(x => x.MaCB == ma);
-                if (cb != null) ShowDialogAddEdit(cb);
-            };
-
-            btnXoa.Click += (s, e) => {
-                if (dgvData.SelectedRows.Count > 0 && MessageBox.Show("Bạn có chắc chắn muốn xóa cán bộ này?", "Xác nhận", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
-                {
-                    db.Xoa(dgvData.SelectedRows[0].Cells["MaCB"].Value.ToString());
-                    LoadData(); // Load lại bảng
-                }
-            };
-
-            btnSapXep.Click += (s, e) => LoadData(db.SapXepTheoTen());
-            btnTim.Click += (s, e) => LoadData(db.TimKiem(txtTimKiem.Text));
-
-            cmbLocKhoa.SelectedIndexChanged += (s, e) => {
-                if (cmbLocKhoa.SelectedIndex == 0) LoadData();
-                else LoadData(db.LocTheoKhoa(cmbLocKhoa.SelectedItem.ToString()));
-            };
-
-            pnlTop.Controls.AddRange(new Control[] { btnThem, btnSua, btnXoa, btnSapXep, cmbLocKhoa, txtTimKiem, btnTim });
-
-            // --- 2. BẢNG DỮ LIỆU ---
-            dgvData = new DataGridView()
-            {
-                Dock = DockStyle.Fill,
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-                ReadOnly = true,
-                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
-                AllowUserToAddRows = false,
-                BackgroundColor = Color.White,
-                RowTemplate = { Height = 35 }
-            };
-
-            this.Controls.Add(dgvData);
-            this.Controls.Add(pnlTop);
-
-            // Load dữ liệu lần đầu
-            LoadData();
+            // Lệnh này nối file giao diện (Designer) với file Code này
+            InitializeComponent();
         }
 
-        // Hàm LoadData thể hiện tính ĐA HÌNH
-        private void LoadData(System.Collections.Generic.List<CanBo> list = null)
+        private void ucCanBo_Load(object sender, EventArgs e)
         {
-            if (list == null) list = db.LayDanhSach();
+            cmbLocKhoa.SelectedIndex = 0;
+            LoadData(); // Load danh sách ban đầu khi vừa mở UserControl
+        }
+
+        // ====================================================================
+        // HÀM LOAD DATA (CHỨNG MINH TÍNH ĐA HÌNH - POLYMORPHISM)
+        // ====================================================================
+        private void LoadData(List<CanBo> list = null)
+        {
+            // Nếu không truyền list vào thì mặc định lấy toàn bộ từ BLL
+            if (list == null) list = _bll.LayDanhSach();
 
             dgvData.DataSource = list.Select(c => new {
                 MaCB = c.MaCB,
                 HoTen = c.HoTen,
                 Khoa = c.Khoa,
-                // [TÍNH ĐA HÌNH]: Hàm LayThongTinChiTiet() tự động nhận biết đối tượng là Giảng viên hay Chuyên viên để trả về kết quả tương ứng
-                ThongTinBoSung = c.LayThongTinChiTiet()
+                // [TÍNH ĐA HÌNH]: 
+                // Không cần dùng lệnh if-else để kiểm tra xem "c" là Giảng viên hay Chuyên viên.
+                // Hệ thống tự động gọi hàm LayThongTinChiTiet() tương ứng của lớp con được khởi tạo.
+                ThongTinChiTiet = c.LayThongTinChiTiet()
             }).ToList();
         }
 
-        // Hộp thoại Thêm / Sửa Cán bộ (Thể hiện tính KẾ THỪA)
+        // ====================================================================
+        // CÁC SỰ KIỆN NÚT BẤM (GỌI BLL)
+        // ====================================================================
+        private void btnThem_Click(object sender, EventArgs e)
+        {
+            ShowDialogAddEdit(null); // Truyền null báo hiệu là Thêm mới
+        }
+
+        private void btnSua_Click(object sender, EventArgs e)
+        {
+            if (dgvData.SelectedRows.Count == 0) { MessageBox.Show("Vui lòng chọn 1 dòng để sửa!"); return; }
+
+            string ma = dgvData.SelectedRows[0].Cells["MaCB"].Value.ToString();
+            var cb = _bll.LayDanhSach().FirstOrDefault(x => x.MaCB == ma);
+
+            if (cb != null) ShowDialogAddEdit(cb); // Truyền đối tượng vào báo hiệu là Sửa
+        }
+
+        private void btnXoa_Click(object sender, EventArgs e)
+        {
+            if (dgvData.SelectedRows.Count == 0) { MessageBox.Show("Vui lòng chọn 1 dòng để xóa!"); return; }
+
+            if (MessageBox.Show("Bạn có chắc chắn muốn xóa cán bộ này?", "Xác nhận", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
+            {
+                try
+                {
+                    string ma = dgvData.SelectedRows[0].Cells["MaCB"].Value.ToString();
+                    _bll.Xoa(ma); // Đẩy xuống BLL xử lý xóa
+                    LoadData();   // Tải lại bảng
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(ex.Message, "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+        }
+
+        private void btnTim_Click(object sender, EventArgs e)
+        {
+            LoadData(_bll.TimKiem(txtTimKiem.Text));
+        }
+
+        private void btnSapXep_Click(object sender, EventArgs e)
+        {
+            LoadData(_bll.SapXepTheoTen());
+        }
+
+        private void cmbLocKhoa_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (cmbLocKhoa.SelectedIndex == 0)
+                LoadData(); // "Tất cả khoa"
+            else
+                LoadData(_bll.LocTheoKhoa(cmbLocKhoa.SelectedItem.ToString()));
+        }
+
+        // ====================================================================
+        // HỘP THOẠI THÊM / SỬA (TẠO DYNAMIC BẰNG CODE)
+        // CHỨNG MINH TÍNH KẾ THỪA VÀ ĐÓNG GÓI
+        // ====================================================================
         private void ShowDialogAddEdit(CanBo obj = null)
         {
             bool isEdit = obj != null;
-            using (Form f = new Form() { Text = isEdit ? "Sửa Cán Bộ" : "Thêm Cán Bộ", Size = new Size(400, 350), StartPosition = FormStartPosition.CenterParent, FormBorderStyle = FormBorderStyle.FixedDialog, MaximizeBox = false })
+            using (Form f = new Form() { Text = isEdit ? "Sửa Cán Bộ" : "Thêm Cán Bộ", Size = new Size(420, 380), StartPosition = FormStartPosition.CenterParent, FormBorderStyle = FormBorderStyle.FixedDialog, MaximizeBox = false, BackColor = Color.White })
             {
-                TextBox txtMa = new TextBox() { Left = 130, Top = 20, Width = 200, Text = isEdit ? obj.MaCB : "", Enabled = !isEdit };
-                TextBox txtTen = new TextBox() { Left = 130, Top = 60, Width = 200, Text = isEdit ? obj.HoTen : "" };
+                Font font = new Font("Segoe UI", 11);
 
-                ComboBox cmbKhoa = new ComboBox() { Left = 130, Top = 100, Width = 200, DropDownStyle = ComboBoxStyle.DropDownList };
+                TextBox txtMa = new TextBox() { Left = 150, Top = 30, Width = 220, Font = font, Text = isEdit ? obj.MaCB : "", Enabled = !isEdit };
+                TextBox txtTen = new TextBox() { Left = 150, Top = 70, Width = 220, Font = font, Text = isEdit ? obj.HoTen : "" };
+
+                ComboBox cmbKhoa = new ComboBox() { Left = 150, Top = 110, Width = 220, Font = font, DropDownStyle = ComboBoxStyle.DropDownList };
                 cmbKhoa.Items.AddRange(new[] { "Công nghệ Thông tin", "Kinh tế", "Ngoại ngữ" });
                 cmbKhoa.SelectedItem = isEdit ? obj.Khoa : "Công nghệ Thông tin";
 
-                ComboBox cmbLoai = new ComboBox() { Left = 130, Top = 140, Width = 200, DropDownStyle = ComboBoxStyle.DropDownList, Enabled = !isEdit };
+                ComboBox cmbLoai = new ComboBox() { Left = 150, Top = 150, Width = 220, Font = font, DropDownStyle = ComboBoxStyle.DropDownList, Enabled = !isEdit };
                 cmbLoai.Items.AddRange(new[] { "Giảng Viên", "Chuyên Viên" });
+                // Phân biệt đối tượng cũ là loại gì
                 cmbLoai.SelectedIndex = isEdit ? (obj is GiangVien ? 0 : 1) : 0;
 
-                Label lblPhu = new Label() { Text = "Môn dạy:", Left = 20, Top = 180 };
-                TextBox txtPhu = new TextBox() { Left = 130, Top = 180, Width = 200 };
+                Label lblPhu = new Label() { Text = "Môn dạy:", Left = 30, Top = 190, Font = new Font("Segoe UI", 10, FontStyle.Bold) };
+                TextBox txtPhu = new TextBox() { Left = 150, Top = 190, Width = 220, Font = font };
 
-                // Nếu là sửa, nạp dữ liệu cũ vào ô phụ
+                // Nạp dữ liệu cũ vào form nếu là chế độ Sửa
                 if (isEdit) txtPhu.Text = obj is GiangVien gv ? gv.MonHocDay : ((ChuyenVien)obj).ChucVu;
 
-                // Tự động đổi nhãn khi chọn loại Cán bộ
+                // Tự động đổi Label khi đổi loại cán bộ
                 cmbLoai.SelectedIndexChanged += (s, e) => lblPhu.Text = cmbLoai.SelectedIndex == 0 ? "Môn dạy:" : "Chức vụ:";
 
-                Button btnLuu = new Button() { Text = "Lưu Dữ Liệu", Left = 130, Top = 240, Width = 120, Height = 40, BackColor = Color.FromArgb(46, 204, 113), ForeColor = Color.White, Cursor = Cursors.Hand };
+                Button btnLuu = new Button() { Text = "Lưu Dữ Liệu", Left = 80, Top = 260, Width = 120, Height = 40, BackColor = Color.FromArgb(46, 204, 113), ForeColor = Color.White, Font = new Font("Segoe UI", 10, FontStyle.Bold), FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
+                Button btnHuy = new Button() { Text = "Hủy Bỏ", Left = 220, Top = 260, Width = 120, Height = 40, BackColor = Color.Gray, ForeColor = Color.White, Font = new Font("Segoe UI", 10, FontStyle.Bold), FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
+
+                btnHuy.Click += (s, e) => f.Close();
 
                 btnLuu.Click += (s, e) => {
                     try
                     {
-                        if (string.IsNullOrWhiteSpace(txtMa.Text) || string.IsNullOrWhiteSpace(txtTen.Text)) throw new Exception("Vui lòng nhập đủ Mã và Tên!");
-
-                        // [TÍNH KẾ THỪA]: Dựa vào ComboBox Loại để ép kiểu (Casting) và khởi tạo đối tượng tương ứng
+                        // [TÍNH KẾ THỪA] - Khởi tạo đối tượng lớp con tùy vào lựa chọn ComboBox
                         CanBo cb = cmbLoai.SelectedIndex == 0
                             ? (CanBo)new GiangVien(txtMa.Text, txtTen.Text, cmbKhoa.Text, txtPhu.Text)
                             : (CanBo)new ChuyenVien(txtMa.Text, txtTen.Text, cmbKhoa.Text, txtPhu.Text);
 
-                        if (isEdit) db.Sua(cb); else db.Them(cb);
+                        // [TÍNH ĐÓNG GÓI] - Nếu txtMa, txtTen rỗng, property Set trong class CanBo 
+                        // hoặc tầng BLL sẽ Throw Exception và bị khối catch ở dưới bắt lại.
+                        if (isEdit)
+                            _bll.Sua(cb);
+                        else
+                            _bll.Them(cb);
 
-                        f.DialogResult = DialogResult.OK;
+                        f.DialogResult = DialogResult.OK; // Báo lưu thành công
                         f.Close();
                     }
-                    catch (Exception ex) { MessageBox.Show(ex.Message, "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show(ex.Message, "Lỗi Nghiệp vụ", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
                 };
 
                 f.Controls.AddRange(new Control[] {
-                    new Label() { Text = "Mã Cán Bộ:", Left = 20, Top = 20 }, txtMa,
-                    new Label() { Text = "Họ và Tên:", Left = 20, Top = 60 }, txtTen,
-                    new Label() { Text = "Thuộc Khoa:", Left = 20, Top = 100 }, cmbKhoa,
-                    new Label() { Text = "Loại Cán Bộ:", Left = 20, Top = 140 }, cmbLoai,
-                    lblPhu, txtPhu, btnLuu
+                    new Label() { Text = "Mã Cán Bộ:", Left = 30, Top = 30, Font = new Font("Segoe UI", 10, FontStyle.Bold) }, txtMa,
+                    new Label() { Text = "Họ và Tên:", Left = 30, Top = 70, Font = new Font("Segoe UI", 10, FontStyle.Bold) }, txtTen,
+                    new Label() { Text = "Thuộc Khoa:", Left = 30, Top = 110, Font = new Font("Segoe UI", 10, FontStyle.Bold) }, cmbKhoa,
+                    new Label() { Text = "Loại Cán Bộ:", Left = 30, Top = 150, Font = new Font("Segoe UI", 10, FontStyle.Bold) }, cmbLoai,
+                    lblPhu, txtPhu, btnLuu, btnHuy
                 });
 
+                // Nếu hộp thoại đóng lại với trạng thái OK thì tải lại dữ liệu mới lên bảng
                 if (f.ShowDialog() == DialogResult.OK) LoadData();
             }
         }
